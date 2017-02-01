@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+
+<head>
+
+
+    <link rel="stylesheet" href="dist/material.css">
+    <link rel="stylesheet" href="css/main.css">
+    <script>
+        LoadScripts();
+
+        function LoadScripts(async) {
+            var scripts = [];
+              var _scriptsProd = [
+                'dist/angular.js',
+                'dist/animate.js',
+                'dist/aria.js',
+                'dist/messages.js',
+                'dist/material.js',
+                'dist/socket.js',
+                'dist/Chart2.js',
+                'dist/websocket.js',
+                'dist/chart.js',
+                'dist/ui-router.js',
+                'js/main.js',
+                'js/Websocketf.js'
+                ];
+            var _scriptsDev = [
+                'dist/angular.min.js',
+                'dist/angular-animate.min.js',
+                'dist/angular-aria.min.js',
+                'dist/angular-messages.min.js',
+                'dist/angular-material.min.js',
+                'dist/socket.min.js',
+                'dist/Chart.min.js',
+                'dist/angular-websocket.min.js',
+                'dist/angular-chart.min.js',
+                'dist/angular-ui-router.min.js',
+                'js/main.js',
+                'js/Websocketf.js'
+            ];
+            LoadScriptsSync(_scriptsProd, scripts)
+        }
+
+        function LoadScriptsSync(_scripts, scripts) {
+            var x = 0;
+            var loopArray = function(_scripts, scripts) {
+                loadScript(_scripts[x], scripts[x], function() {
+                    x++;
+                    if (x < _scripts.length) {
+                        loopArray(_scripts, scripts);
+                    }
+                });
+            }
+            loopArray(_scripts, scripts);
+        }
+
+        function loadScript(src, script, callback) {
+            console.log("loading script" + src);
+            script = document.createElement('script');
+            script.onerror = function() {
+                alert('Error to handle')
+            }
+            script.onload = function() {
+                console.log(src + ' loaded ')
+                callback();
+            }
+            script.src = src;
+            document.getElementsByTagName('head')[0].appendChild(script);
+        }
+    </script>
+</head>
+
+<body ng-app="cardDemo1" ng-cloak>
+    <div ng-hide="true">
+        <img name='image0' onLoad="LoadImage('image1','img/switchOn.svg')">
+        <img name='image1' onLoad="LoadImage('image2','img/switchOff.svg')">
+        <img name='image2' onLoad="LoadImage('image3','img/temp.svg')">
+        <img name='image3' onLoad="LoadImage('image4','img/hum.svg')">
+        <img name='image4' onLoad="LoadImage('image5','assets/icons/menu.svg')">
+        <img name='image5' onLoad="LoadImage('image6','assets/icons/dots-vertical.svg')">
+        <img name='image6'>
+    </div>
+    <div ng-controller="AppCtrl" ng-cloak>
+
+        <md-sidenav class="md-sidenav-left md-whiteframe-24dp" md-component-id="left">
+            <md-toolbar class="md-theme-indigo">
+                <h1 class="md-toolbar-tools"></h1>
+            </md-toolbar>
+            <md-content layout-margin>
+                <p>
+                    Toi Même Tu Sais
+                </p>
+                <md-button ui-sref="esp" target="_self">Esp</md-button>
+                <md-button ui-sref="test" target="_self">test</md-button>
+                <md-button ng-click="toggleLeft()" class="md-accent">
+                    Fermer
+                </md-button>
+            </md-content>
+        </md-sidenav>
+        <header style="position:absolute;z-index:1000;color:cccccc;">
+            <md-button ui-sref="homepage" target="_self">
+                <h1 class="md-toolbar-tools">Esp Server</h1>
+            </md-button>
+        </header>
+        <md-fab-toolbar md-open="false" md-direction="left">
+            <md-fab-trigger class="align-with-text">
+                <md-button aria-label="menu" class="md-fab md-primary">
+                    <md-icon md-svg-src="assets/icons/menu.svg"></md-icon>
+                </md-button>
+            </md-fab-trigger>
+            <md-toolbar>
+                <md-fab-actions class="md-toolbar-tools">
+                    <md-button aria-label="comment" class="md-icon-button">
+                        <md-icon md-svg-src="assets/icons/menu.svg"></md-icon>
+                    </md-button>
+                    <md-button aria-label="label" class="md-icon-button" ng-click="toggleLeft()">
+                        <md-icon md-svg-src="assets/icons/dots-vertical.svg"></md-icon>
+                    </md-button>
+                    <md-button aria-label="photo" class="md-icon-button" ui-sref="esp">
+                        ESP
+                    </md-button>
+                </md-fab-actions>
+            </md-toolbar>
+        </md-fab-toolbar>
+        <ui-view>
+            <md-card md-theme="{{ showDarkTheme ? 'dark-grey' : 'default' }}" md-theme-watch>
+                <md-card-title>
+                    <md-card-title-text>
+                        <span class="md-headline">EspServer Configuration</span>
+                        <span class="md-subhead">Quelques outils de configuration</span>
+                    </md-card-title-text>
+                    <img src="img/lux.svg" class="md-card-image" alt="Washed Out" height="50" width="50">
+                </md-card-title>
+                <md-card-actions layout="row" layout-align="end center">
+                    <md-button>Connection Wifi</md-button>
+                    <md-button>Connection Serveur Distant</md-button>
+                </md-card-actions>
+            </md-card>
+
+            <md-card md-theme="{{'dark-grey'}}" md-theme-watch>
+                <md-card-title>
+                    <md-card-title-text>
+                        <span class="md-headline">Espserver Actions</span>
+                        <span class="md-subhead">Quelques actions sympa</span>
+                    </md-card-title-text>
+                    <md-card-title-media>
+                        <img src="img/energy.svg" class="md-card-image" alt="Washed Out" height="50" width="50">
+                    </md-card-title-media>
+                </md-card-title>
+                <md-card-actions layout="row" layout-align="end center">
+                    <md-button>Tout éteindre</md-button>
+                    <md-button>Tout allumer</md-button>
+                    <md-button>Graph de consommations</md-button>
+                </md-card-actions>
+            </md-card>
+        </ui-view>
+
+    </div>
+</body>
+
+</html>

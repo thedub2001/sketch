@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>ESP8266 File Editor</title>
+  <style type="text/css" media="screen">
+  .contextMenu {
+    z-index: 300;
+    position: absolute;
+    left: 5px;
+    border: 1px solid #444;
+    background-color: #F5F5F5;
+    display: none;
+    box-shadow: 0 0 10px rgba( 0, 0, 0, .4 );
+    font-size: 12px;
+    font-family: sans-serif;
+    font-weight:bold;
+  }
+  .contextMenu ul {
+    list-style: none;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: 0;
+  }
+  .contextMenu li {
+    position: relative;
+    min-width: 60px;
+    cursor: pointer;
+  }
+  .contextMenu span {
+    color: #444;
+    display: inline-block;
+    padding: 6px;
+  }
+  .contextMenu li:hover { background: #444; }
+  .contextMenu li:hover span { color: #EEE; }
+
+
+  #uploader { 
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    line-height: 24px;
+    padding-left: 10px;
+    padding-bottom: 2px;
+    background-color: #444;
+    color:#EEE;
+  }
+
+  #preview {
+    background-color: #EEE;
+    padding:5px;
+  }
+
+    #UserGuide { 
+    position: absolute;
+    margin-top: 50px;
+    right: 50px;
+    left: 50px;
+    line-height: 24px;
+    padding-left: 10px;
+    background-color: #D1B82A;
+    color:#EEE;
+  }
+  
+  </style>
+  <script>
+
+  /* Create fileuploader ----------------------------------------------------------------------*/
+
+  function createFileUploader(element){
+    var xmlHttp;
+    var input = document.createElement("input");
+    input.type = "file";
+    input.multiple = false;
+    input.name = "data";
+    document.getElementById(element).appendChild(input);
+    var path = document.createElement("input");
+    path.id = "upload-path";
+    path.type = "text";
+    path.name = "path";
+    path.defaultValue = "/";
+    document.getElementById(element).appendChild(path);
+
+    var put = document.createElement("button");
+    put.innerHTML = 'Put';
+    document.getElementById(element).appendChild(put);
+
+    var button = document.createElement("button");
+    button.innerHTML = 'Upload';
+    document.getElementById(element).appendChild(button);
+
+    var deleter = document.createElement("button");
+    deleter.innerHTML = 'Delete';
+    document.getElementById(element).appendChild(deleter);
+
+    var list = document.createElement("button");
+    list.innerHTML = 'File list';
+    document.getElementById(element).appendChild(list);
+
+
+
+    put.onclick = function(e){
+    createPath(document.getElementById('upload-path').value);
+    }
+
+    list.onclick = function(e){
+      window.location.href = '/list?dir='+ document.getElementById('upload-path').value;
+    }
+    deleter.onclick = function(e){
+    httpDelete(document.getElementById('upload-path').value)
+    // todo: Afficher confirmation de la suppression
+    }
+
+    button.onclick = function(e){
+      if(input.files.length === 0){
+        return;
+      }
+      xmlHttp = new XMLHttpRequest();
+      xmlHttp.onreadystatechange = httpPostProcessRequest;
+      var formData = new FormData();
+      formData.append("data", input.files[0], path.value);
+      xmlHttp.open("POST", "/edit");
+      xmlHttp.send(formData);
+    }
+
+    input.onchange = function(e){
+      if(input.files.length === 0) return;
+      var filename = input.files[0].name;
+      var ext = /(?:\.([^.]+))?$/.exec(filename)[1];
+      var name = /(.*)\.[^.]+$/.exec(filename)[1];
+      if(typeof name !== undefined){
+        if(name.length > 8) name = name.substring(0, 8);
+        filename = name;
+      }
+      if(typeof ext !== undefined){
+        if(ext === "html") ext = "htm";
+        else if(ext === "jpeg") ext = "jpg";
+        filename = filename + "." + ext;
+      }
+      if(path.value === "/" || path.value.lastIndexOf("/") === 0){
+        path.value = "/"+filename;
+      } else {
+        path.value = path.value.substring(0, path.value.lastIndexOf("/")+1)+filename;
+      }
+    }
+  }
+
+  function httpDelete(filename){
+    xmlHttp = new XMLHttpRequest();
+    var formData = new FormData();
+    formData.append("path", filename);
+    xmlHttp.open("DELETE", "/edit");
+    xmlHttp.send(formData);
+  }
+
+  function getCb(parent, path){
+    return function(){
+      if (xmlHttp.readyState == 4){
+              //clear loading
+              if(xmlHttp.status == 200) addList(parent, path, JSON.parse(xmlHttp.responseText));
+            }
+          }
+        }
+
+  function httpGet(parent, path){ // httpGet(treeRoot, "/");
+  xmlHttp = new XMLHttpRequest(parent, path);
+  xmlHttp.onreadystatechange = getCb(parent, path);
+  xmlHttp.open("GET", "/list?dir="+path, true);
+  xmlHttp.send(null);
+    //start loading
+  }
+
+  function createPath(p){
+  xmlHttp = new XMLHttpRequest();
+  xmlHttp.onreadystatechange = httpPostProcessRequest;
+  var formData = new FormData();
+  formData.append("path", p);
+  xmlHttp.open("PUT", "/edit");
+  xmlHttp.send(formData);
+  }
+
+  //var xmlHttp = null;
+
+  function httpPostProcessRequest(){
+    if (xmlHttp.readyState == 4){
+      if(xmlHttp.status != 200) alert("ERROR["+xmlHttp.status+"]: "+xmlHttp.responseText);
+      else {
+          alert("OK["+xmlHttp.status+"]: "+xmlHttp.responseText);
+      }
+    }
+  }
+
+  function httpPost(filename, data, type){
+    xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = httpPostProcessRequest;
+    var formData = new FormData();
+    formData.append("data", new Blob([data], { type: type }), filename);
+    xmlHttp.open("POST", "/edit");
+    xmlHttp.send(formData);
+  }
+
+  function httpGetProcessRequest(){
+    if (xmlHttp.readyState == 4){
+      document.getElementById("preview").style.display = "none";
+      document.getElementById("editor").style.display = "block";
+      if(xmlHttp.status == 200) editor.setValue(xmlHttp.responseText);
+      else editor.setValue("");
+      editor.clearSelection();
+    }
+  }
+
+  function httpGet(theUrl){
+    xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = httpGetProcessRequest;
+    xmlHttp.open("GET", theUrl, true);
+    xmlHttp.send(null);
+  }
+
+  /* on body load ---------------------------------------------------------*/
+
+  function onBodyLoad(){
+    var vars = {};
+    var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) { vars[key] = value; });
+        //var editor = createEditor("editor", vars.file, vars.lang, vars.theme);
+        //var tree = createTree("tree", editor);
+        createFileUploader("uploader");
+      };
+      </script>
+
+    </head>
+    <body onload="onBodyLoad();">
+      <div id="uploader"></div>
+      <div id="UserGuide">How to : 
+        <br> Use "/" to refer to the root folder
+        <br> Upload a file : First select your file with the "Parcourir" button and click the "Put" button if it exists no file with the same name on the destination folder. Then click the "Upload" button to upload the content of the file
+        <br> Obtain the list of the files : Type the folder into the input box and click the "File list" button, it will return a list in a json
+        <br> Delete a file : Type the file you want to delete into the input box and click the "Delete" button
+      </div>
+      <div id="preview" style="display:none;"></div>
+      <iframe id=download-frame style='display:none;'></iframe>
+    </body>
+    </html>

@@ -1,0 +1,84 @@
+<md-grid-list ng-if="connected===0" md-theme="{{'dark-grey'}}" md-theme-watch md-cols="1" md-cols-sm="2" md-cols-md="2" md-cols-gt-md="4" md-row-height-gt-md="1:1" md-row-height="16:9" md-gutter="8px" md-gutter-gt-sm="4px">
+    <md-grid-tile md-rowspan="1" md-theme="{{'dark-grey'}}" md-theme-watch md-colspan="1" md-colspan-sm="1" md-colspan-xs="1" style="background-color:#eeeeee;">
+        <md-grid-tile-header>
+            <h3>Connections</h3>
+        </md-grid-tile-header>
+        <!--<md-input-container>
+            <label>Socket Url (ip:port)</label>
+            <input ng-model="theUrl">
+        </md-input-container>-->
+        <!--<md-button ng-click="startWebsocket(theUrl)">Connect</md-button>-->
+        <md-button ng-click="scanNetwork()">Scan Dub</md-button>
+        <md-grid-tile-footer>
+            <h3>{{dataWs}}</h3>
+        </md-grid-tile-footer>
+    </md-grid-tile>
+</md-grid-list>
+
+<!--<md-grid-list md-cols="1" ng-repeat="esp in dataWs" md-cols-sm="2" md-cols-md="2" md-cols-gt-md="4" md-row-height-gt-md="1:1" md-row-height="16:9" md-gutter="8px" md-gutter-gt-sm="4px">
+    <md-grid-tile ng-repeat="(key,value) in esp[esp.length-1] track by $index" md-rowspan="1" md-colspan="1" md-colspan-sm="1" md-colspan-xs="1" style="background-color:#eeeeee;">
+        <md-grid-tile-header>
+            <h3>{{key}}</h3>
+        </md-grid-tile-header>
+        <span>{{value}}</span>
+        <section ng-if="key=='R1'" layout="row" layout-sm="column" layout-align="center center" layout-wrap>
+            <md-button ng-show="value==0" class="md-fab md-whiteframe-24dp" style="width: 200px; height:200px; background-color: green;" ng-click="relay(esp[esp.length-1].localip,1)">on</md-button>
+            <md-button ng-show="value==1" class="md-fab" style="width: 200px; height:200px; background-color: blue;" ng-click="relay(esp[esp.length-1].localip,0)">off</md-button>
+        </section>
+        <md-grid-tile-footer>
+            <h3>{{value}}</h3>
+        </md-grid-tile-footer>
+    </md-grid-tile>
+    <md-grid-tile ng-if="connected===1" md-rowspan="1" md-colspan="2" md-colspan-sm="2" md-colspan-xs="2" style="background-color:#eeeeee;">
+        <md-grid-tile-header style="background-color:#ff0000;">
+            <h3>Close Connections</h3>
+        </md-grid-tile-header>
+        <md-button ng-click="closeWebsocket()">Close Connection</md-button>
+        <md-grid-tile-footer>
+            <h3>zbra</h3>
+        </md-grid-tile-footer>
+    </md-grid-tile>
+</md-grid-list>-->
+
+<div layout="row" ng-repeat="esp in dataWs">
+    <md-card flex="30" md-theme="{{'default'}}" md-theme-watch>
+        <md-card-title>
+            <md-card-title-text>
+                <span class="md-headline">{{esp[esp.length-1].iotname}}</span>
+                <span class="md-subhead">{{esp[esp.length-1].localip}}</span>
+            </md-card-title-text>
+        </md-card-title>
+        <md-card-content>
+            <canvas id="radar" class="chart chart-radar" chart-data="dataRadar[esp[esp.length-1].iotid]" chart-options="optionsRadar" chart-labels="labelsRadar"></canvas>
+            <p>Bouton : <img ng-show="esp[esp.length-1].button==0" src="img/lux.svg" class="md-card-image" alt="Washed Out" height="50" width="50">
+                <img ng-show="esp[esp.length-1].button==1" src="img/energy.svg" class="md-card-image" alt="Washed Out" height="50" width="50"></p>
+            <p>Consommation : {{esp[esp.length-1].current}}</p>
+            <p>luminosity : {{esp[esp.length-1].luminosity}}</p>
+            <p>temperature : {{esp[esp.length-1].temperature}}</p>
+            <p>humidity : {{esp[esp.length-1].humidity}}</p>
+        </md-card-content>
+        <md-card-actions layout="row" layout-align="end center">
+            <img ng-show="esp[esp.length-1].R1==0" src="img/lux.svg" class="md-card-image" alt="Washed Out" height="50" width="50">
+            <md-button ng-show="esp[esp.length-1].R1==0" ng-click="relay(esp[esp.length-1].localip,1)">Eteindre</md-button>
+            <img ng-show="esp[esp.length-1].R1==1" src="img/energy.svg" class="md-card-image" alt="Washed Out" height="50" width="50">
+            <md-button ng-show="esp[esp.length-1].R1==1" class="md-primary" ng-click="relay(esp[esp.length-1].localip,0)">Allumer</md-button>
+        </md-card-actions>
+    </md-card>
+    <md-card flex="70" md-theme="{{'dark-grey'}}" md-theme-watch>
+        <md-card-title>
+            <md-card-title-text>
+                <span class="md-headline">{{esp[esp.length-1].iotname}}</span>
+                <span class="md-subhead">{{esp[esp.length-1].localip}}</span>
+            </md-card-title-text>
+        </md-card-title>
+        <md-card-content>
+            <canvas id="line" class="chart chart-line" chart-data="dataGraph[esp[esp.length-1].iotid]" chart-labels="labelsGraph[esp[esp.length-1].iotid]" chart-series="seriesGraph" chart-options="options2" chart-click="onClickGraph[esp[esp.length-1].iotid]"></canvas>
+            <!--<img src="img/esp.png" class="md-card-image" alt="Washed Out" width="95%">-->
+        </md-card-content>
+        <md-card-actions layout="row" layout-align="end center">
+            <md-button ng-href="http://{{esp[esp.length-1].localip}}/index.html">Acceder</md-button>
+            <md-button class="md-primary">Config Avancée</md-button>
+
+        </md-card-actions>
+    </md-card>
+</div>
