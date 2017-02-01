@@ -11,7 +11,7 @@
   #include <FS.h>
   #include <DHT.h> 
   #include "user_interface.h" //for timer purpose
-  #include <Average.h>
+  //#include <Average.h> //Deprecated
   #include "aes256.h" //Crypto library
   #include <ArduinoJson.h> // Json parser and creator
   #include <Adafruit_NeoPixel.h>  
@@ -62,7 +62,7 @@
   uint32_t blackCol=strip.Color(0,0,0);
 
 // ----------------- Variables definition
-  Average<int> ave(250); // // Reserve space for n entries in the average bucket.
+  //Average<int> ave(250); // // Reserve space for n entries in the average bucket.
   aes256_context ctxt; // Crypto init
  
   boolean gain;     // Gain setting, 0 = X1, 1 = X16;
@@ -357,84 +357,7 @@
     os_timer_arm(&myTimer3, t3delay, true); // ?? remplacer 500 par
   }
 
-  void currentRead() { // one 50Hz period is + or - 210 samples
-    os_timer_disarm(&myTimer3); // disarm all?
-    int maxat2 = 0;
-    int maxat1 = 0;
-    int temp = 0;
-    float newAmp = 0;
-    long aveR;
-    ave.clear();
-       
-    // Ajouter une détection de période car l'esp n'est pas toujours à la même fréquence
-    // détection : au niveau de "average" si sig[n]-sig[n+2] < 0 alors on monte, on prend les valeurs depuis le franchissement montant de la médiane jusqu'au prochain franchissement montant de la médiane
-    // détection 2 : dès que sig[i] > "average" on enregistre, dès que sig[i]< "average" : ( dès que sig[i] > "average" on stop l'enregistrement )
-    // détection 3 : méthode de l'écart type minimal voir fichier exls
-    //-->du coup si il y a plus de relevés, la valeur sera plus grande : régler ceci avec un coefficient fonction du nombre de relevés
-    // la moyenne du signal évolue en fonction de l'alimentation de l'esp mais average=ok
-    // -->
-       
-    for (int i = 0; i < 500; i++) {
-      val[i]=analogRead(A0);
-    //ave.push(analogRead(A0)); // ne pas pusher dans ave.push mais dans [val]
-    }
-
-   for (int i = 0; i < 250; i++) {
-        ave.push( val[i]);
-    }
-    ave.maximum(&maxat1); // 1st crete
-
-    ave.clear();
-
-    for (int i = (maxat1+11); i < (maxat1+240); i++) {
-        ave.push( val[i]);
-    }
-
-    ave.maximum(&maxat2); // 2nd crete
-
-    ave.clear();
-
-    for (int i = maxat1; i < maxat2; i++) {
-        ave.push( val[i]);
-    }
-
-    aveR=ave.mean(); // Mean from 1st crete to 2nd crete
-    // vérifier que aveR est un int
-
-    long powerSum=0;
-    for (int i = maxat1 ; i < maxat2; i++) { // period=146 measurements
-      powerSum+=abs(ave.get(i)-aveR);          
-    }
-    DBG_PRINT("maxat1 : ");
-    DBG_PRINTLN(maxat1);
-
-    DBG_PRINT("maxat2 : ");
-    DBG_PRINTLN(maxat2);
-
-    DBG_PRINT("average : ");
-    DBG_PRINTLN(aveR);
-
-    DBG_PRINT("powerSum : ");
-    DBG_PRINTLN(powerSum);
-
-    newAmp =0.00033553*powerSum+0.05324;
-    DBG_PRINT("Current : ");
-    DBG_PRINTLN(newAmp);
-    newAmp = long(int((newAmp*20))); // We round the current at 0.05
-    newAmp = newAmp / 20;
-    // look if the value needs to be updated to the "home" server
-    if (newAmp != oldCurrentValue){
-        needUpdate = true;
-        DBG_PRINT("current changed : ");
-        DBG_PRINTLN(newAmp);
-        oldCurrentValue=newAmp;
-    }
-    //return the interpolation of the analogValue with the real current flowing (3 equations/3 areas)
-    // value should be in a global variable
-    currentValue=newAmp;
-    os_timer_arm(&myTimer3, t3delay, true); // ?? remplacer 500 par
-  }
-
+  
   void dhtRead() {
     //2sec request delay if dht has been readen just before
     if(lastDhtRead+2000<millis()){
@@ -1574,7 +1497,7 @@ void setup(void) {
   //create file
   server.on("/edit", HTTP_PUT, handleFileCreate);
   //delete file
-  server.on("/edit", HTTP_DELETE, handleFileDelete);
+  server.on("/edit", HTTP_DELETE, handleFileDelete); // todo: Afficher confirmation de la suppression 
   //first callback is called after the request has ended with all parsed arguments
   //second callback handles file uploads at that location
   server.on("/edit", HTTP_POST, [](){ server.send(200, "text/plain", ""); }, handleFileUpload);
