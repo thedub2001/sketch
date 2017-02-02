@@ -1508,7 +1508,7 @@ void setup(void) {
   server.on("/wifiparam", HTTP_GET, []() {  server.send(200, "text/json", wifiparam());});
 
   server.on("/current", HTTP_GET, []() { //deprecated
-  currentRead();
+ // currentRead();
   server.send(200, "text/json", currentjson());
   });
 
