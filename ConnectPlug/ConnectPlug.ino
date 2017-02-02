@@ -23,7 +23,6 @@
   #include <Wire.h>
   #include <time.h>
 
-
 // ----------------- Serial Debug (comment or uncomment "#define DEBUG")
 
   #define DEBUG
@@ -469,7 +468,163 @@
     }
   }
 
+//------------------------------------- Internal file handling ------------------------------------------
+  void readWifiData(String filename) {
+    File f = SPIFFS.open(filename, "r");
+    if (!f) {
+      DBG_PRINTLN("Wifi parameters file failed to open");
+    }
+    else {
+      APssid = f.readStringUntil('\n');
+      APssid = APssid.substring(0, APssid.length() - 1);
+      APpwd = f.readStringUntil('\n');
+      APpwd = APpwd.substring(0, APpwd.length() - 1);
+      STssid = f.readStringUntil('\n');
+      STssid = STssid.substring(0, STssid.length() - 1);
+      STpwd = f.readStringUntil('\n');
+      STpwd = STpwd.substring(0, STpwd.length() - 1);
+
+      f.close();
+    }
+
+    if (APssid.length() < 1) { //we can add more security in text verifying
+      APssid = initAPssid;
+      APpwd = initAPpwd;
+    }
+
+    if (STssid.length() < 1) {
+      STssid = initSTssid;
+      STpwd = initSTpwd;
+      DBG_PRINTLN(STssid);
+      DBG_PRINTLN(STpwd);
+    }
+  }
+
+  void WriteWifiData(String filename) {
+    File f = SPIFFS.open(filename, "w");
+    if (!f) {
+      DBG_PRINTLN("file open failed");
+    }
+    else {
+      f.println(APssid);
+      f.println(APpwd);
+      f.println(STssid);
+      f.println(STpwd);
+      f.close();
+      DBG_PRINTLN("file writed");
+    }
+  }
+
+  void WriteTxtData(String filename, String data) {
+    File f = SPIFFS.open(filename, "w");
+    if (!f) {
+      DBG_PRINTLN("file open failed");
+    }
+    else {
+      f.println(data);
+      f.close();
+      DBG_PRINTLN("file writed");
+    } //writes serial data to a file
+  }
+
+  void readHomeData(String filename) {
+    String Homeportstr;
+    File f = SPIFFS.open(filename, "r");
+    if (!f) {
+      DBG_PRINTLN("Home parameters file failed to open");
+    }
+    else {
+      HomeIP = f.readStringUntil('\n');
+      HomeIP = HomeIP.substring(0, HomeIP.length() - 1);
+      Homeportstr = f.readStringUntil('\n');
+      Homeportstr = Homeportstr.substring(0, Homeportstr.length() - 1);
+      homeport=Homeportstr.toInt();
+      f.close();
+    }
+  }
+
+  void writeHomeData(String filename) {
+
+    File f = SPIFFS.open(HomeFile, "w");
+    if (!f) {
+      DBG_PRINTLN("file open failed");
+    }
+    else {
+      f.println(HomeIP);
+      f.println(homeport);
+      f.close();
+      DBG_PRINTLN("file writed");
+    }
+  }
+
+  void readConditionalOrders(String filename) {
+    File f = SPIFFS.open(filename, "r");
+    if (!f) {
+      DBG_PRINTLN("Conditional orders file failed to open");
+    }
+    else {
+      conditionalOrders = f.readStringUntil('\n');
+    }
+  }
+
 // ------------------------------------ Conditional Orders ----------------------------------------------
+    boolean ordreIfString(String ordre) {
+      int commaIndex = ordre.indexOf(',');
+      int secondCommaIndex = ordre.indexOf(',', commaIndex + 1);
+      char capteur = ordre.substring(0, commaIndex).charAt(0);
+      String capteurValue;
+      char type = ordre.substring(commaIndex + 1, secondCommaIndex).charAt(0);
+      String condition = ordre.substring(secondCommaIndex + 1);
+      switch (capteur) {
+          case 'l':
+              capteurValue = lumValue;
+          break;
+          case 'h':
+              capteurValue = humDhtValue;
+              break;
+          case 't':
+              capteurValue = tempDhtValue;
+          break;
+          case 'b':
+              capteurValue = buttonState;
+          break;
+          case 'c':
+              capteurValue = currentValue;
+          break;
+      }
+
+      switch (type) {
+          case '<':
+              if (capteurValue < condition) {
+                  return 1;
+              } else {
+                  return 0;
+              }
+              break;
+
+          case '>':
+              if (capteurValue > condition) {
+                  return 1;
+              } else {
+                  return 0;
+              }
+              break;
+
+          case '=':
+              if (capteurValue == condition) {
+                  return 1;
+              } else {
+                  return 0;
+              }
+              break;
+
+          default:
+              return 0;
+              break;
+      }
+  }
+
+
   void parseOrders(String orderTemp, String &cb) {
     boolean updateOrders=false;
     // try using DynamicJsonBuffer with esp
@@ -632,160 +787,204 @@
       // delete ordersTemp
   }
 
-  boolean ordreIfString(String ordre) {
-      int commaIndex = ordre.indexOf(',');
-      int secondCommaIndex = ordre.indexOf(',', commaIndex + 1);
-      char capteur = ordre.substring(0, commaIndex).charAt(0);
-      String capteurValue;
-      char type = ordre.substring(commaIndex + 1, secondCommaIndex).charAt(0);
-      String condition = ordre.substring(secondCommaIndex + 1);
-      switch (capteur) {
-          case 'l':
-              capteurValue = lumValue;
-          break;
-          case 'h':
-              capteurValue = humDhtValue;
-              break;
-          case 't':
-              capteurValue = tempDhtValue;
-          break;
-          case 'b':
-              capteurValue = buttonState;
-          break;
-          case 'c':
-              capteurValue = currentValue;
-          break;
+//--------------------------------- String elaboration sub-routines -------------------------------------
+  
+  void sort(int a[], int size, int r[]) {
+    for (int i = 0; i < (size - 1); i++) {
+      for (int o = 0; o < (size - (i + 1)); o++) {
+        if (a[o] < a[o + 1]) {
+          int t = a[o];
+          a[o] = a[o + 1];
+          a[o + 1] = t;
+          t = r[o];
+          r[o] = r[o + 1];
+          r[o + 1] = t;
+        }
+      }
+    } // used to sort the wifi access point list
+  }
+
+  void WifiToVars() {
+    IPAddress myIP;
+    IPAddress mylocalIP;
+    IPAddress mysubnetMask;
+    IPAddress mygatewayIP;
+
+    myIP = WiFi.softAPIP();
+    sprintf(myIPString, "%d.%d.%d.%d", myIP[0], myIP[1], myIP[2], myIP[3]);
+    mylocalIP = WiFi.localIP();
+    sprintf(mylocalIPString, "%d.%d.%d.%d", mylocalIP[0], mylocalIP[1], mylocalIP[2], mylocalIP[3]);
+    mysubnetMask = WiFi.subnetMask();
+    sprintf(mysubnetMaskString, "%d.%d.%d.%d", mysubnetMask[0], mysubnetMask[1], mysubnetMask[2], mysubnetMask[3]);
+    mygatewayIP = WiFi.gatewayIP();
+    sprintf(mygatewayIPString, "%d.%d.%d.%d", mygatewayIP[0], mygatewayIP[1], mygatewayIP[2], mygatewayIP[3]); //// turns IP chars to strings
+  }
+
+  String wifiscan() {
+    DBG_PRINTLN("scan start");
+
+    // WiFi.scanNetworks will return the number of networks found
+    // WiFi.scanNetworks doesnt work (miss always the best network) on this sdk version issue:#1355 on github
+    // fixed : https://github.com/esp8266/Arduino/issues/1355
+
+    // sort an array : http://www.hackshed.co.uk/arduino-sorting-array-integers-with-a-bubble-sort-algorithm/
+    int n = WiFi.scanNetworks();
+    DBG_PRINTLN("scan done");
+    if (n == 0)
+      DBG_PRINTLN("no networks found");
+    else
+    {
+      DBG_PRINT(n);
+      DBG_PRINTLN(" networks found");
+
+      int rssi[30];
+      memset(rssi, 0, sizeof(rssi));
+      for (int i = 0; i < n; ++i) {
+        rssi[i] = WiFi.RSSI(i);
       }
 
-      switch (type) {
-          case '<':
-              if (capteurValue < condition) {
-                  return 1;
-              } else {
-                  return 0;
-              }
-              break;
-
-          case '>':
-              if (capteurValue > condition) {
-                  return 1;
-              } else {
-                  return 0;
-              }
-              break;
-
-          case '=':
-              if (capteurValue == condition) {
-                  return 1;
-              } else {
-                  return 0;
-              }
-              break;
-
-          default:
-              return 0;
-              break;
+      int rank[30];
+      for (int i = 0; i < 30; ++i) {
+        rank[i] = i;
       }
+
+      sort(rssi, n, rank);
+
+
+      // Print SSID and RSSI in a json for each network found
+      String json="[";
+      for (int i = 0; i < n; ++i) {
+        json += "{\"SSID\":\"" + String(WiFi.SSID(rank[i])) + "\"";
+        json += ",\"RSSI\":\"" + String(WiFi.RSSI(rank[i])) + "\"},";
+      }
+      json = json.substring(0, json.length() - 1);
+      json += "]";
+      return json;
+    }
+    //DBG_PRINTLN("");
   }
 
-//------------------------------------- Internal file handling ------------------------------------------
-  void readWifiData(String filename) {
-    File f = SPIFFS.open(filename, "r");
-    if (!f) {
-      DBG_PRINTLN("Wifi parameters file failed to open");
-    }
-    else {
-      APssid = f.readStringUntil('\n');
-      APssid = APssid.substring(0, APssid.length() - 1);
-      APpwd = f.readStringUntil('\n');
-      APpwd = APpwd.substring(0, APpwd.length() - 1);
-      STssid = f.readStringUntil('\n');
-      STssid = STssid.substring(0, STssid.length() - 1);
-      STpwd = f.readStringUntil('\n');
-      STpwd = STpwd.substring(0, STpwd.length() - 1);
-
-      f.close();
-    }
-
-    if (APssid.length() < 1) { //we can add more security in text verifying
-      APssid = initAPssid;
-      APpwd = initAPpwd;
-    }
-
-    if (STssid.length() < 1) {
-      STssid = initSTssid;
-      STpwd = initSTpwd;
-      DBG_PRINTLN(STssid);
-      DBG_PRINTLN(STpwd);
-    }
+  String wifistate() {
+    // add ssid name (if wifistatus=connecting or connected or not exist?)
+    String json = "{\"apstate\":\"" + wifistatestring[WiFi.status()] + "\",{\"apname\":\"" + STssid + "\"}";
+    return json;
   }
 
-  void WriteWifiData(String filename) {
-    File f = SPIFFS.open(filename, "w");
-    if (!f) {
-      DBG_PRINTLN("file open failed");
-    }
-    else {
-      f.println(APssid);
-      f.println(APpwd);
-      f.println(STssid);
-      f.println(STpwd);
-      f.close();
-      DBG_PRINTLN("file writed");
-    }
+  String wifiparam() {
+
+    WifiToVars();
+
+    String json = "{\"APip\":\"" + String(myIPString) + "\"";
+    json += ",\"APssid\":\"" + APssid + "\"";
+          if (WifiActive == true) {
+            json += ",\"state\":\"" + wifistatestring[WiFi.status()] + "\"";
+            json += ",\"STssid\":\"" + String(WiFi.SSID()) + "\"";
+            }
+          else {
+            json += ",\"state\":\"" + WifiLastStatus + "\"";
+            json += ",\"STssid\":\"" + STssid + "\"";
+          }
+    json += ",\"localip\":\"" + String(mylocalIPString) + "\"";
+    json += ",\"netmaskip\":\"" + String(mysubnetMaskString) + "\"";
+    json += ",\"gatewayip\":\"" + String(mygatewayIPString) + "\"";
+    json += ",\"mac\":\""  + String(MAC_char) +  "\"";
+    json += ",\"homeip\":\""  + HomeIP +  "\"";
+    json += ",\"homeport\":\""  + String(homeport) +  "\"";
+    json += ",\"homestate\":\""  + HomeState +  "\"}";
+
+    return json;
   }
 
-  void WriteTxtData(String filename, String data) {
-    File f = SPIFFS.open(filename, "w");
-    if (!f) {
-      DBG_PRINTLN("file open failed");
+  String macstr() {
+    WiFi.macAddress(MAC_array);
+    for (int i = 0; i < sizeof(MAC_array); ++i) {
+      sprintf(MAC_char, "%s%02x:", MAC_char, MAC_array[i]);
     }
-    else {
-      f.println(data);
-      f.close();
-      DBG_PRINTLN("file writed");
-    } //writes serial data to a file
+    MAC_char[17] = (char)0;
+    return String(MAC_char);
   }
 
-  void readHomeData(String filename) {
-    String Homeportstr;
-    File f = SPIFFS.open(filename, "r");
-    if (!f) {
-      DBG_PRINTLN("Home parameters file failed to open");
-    }
-    else {
-      HomeIP = f.readStringUntil('\n');
-      HomeIP = HomeIP.substring(0, HomeIP.length() - 1);
-      Homeportstr = f.readStringUntil('\n');
-      Homeportstr = Homeportstr.substring(0, Homeportstr.length() - 1);
-      homeport=Homeportstr.toInt();
-      f.close();
-    }
+  String macaddress() {
+    String json = "{\"mac address\":\"" + String(MAC_char) +  "\"}";
+    return json;
   }
 
-  void writeHomeData(String filename) {
-
-    File f = SPIFFS.open(HomeFile, "w");
-    if (!f) {
-      DBG_PRINTLN("file open failed");
-    }
-    else {
-      f.println(HomeIP);
-      f.println(homeport);
-      f.close();
-      DBG_PRINTLN("file writed");
-    }
+  String dhtjson() {
+    String json = "{\"temperature\":\"" + tempDhtValue +  "\",\"humidity\":\"" + humDhtValue +  "\"}";
+    return json;
   }
 
-  void readConditionalOrders(String filename) {
-    File f = SPIFFS.open(filename, "r");
-    if (!f) {
-      DBG_PRINTLN("Conditional orders file failed to open");
-    }
-    else {
-      conditionalOrders = f.readStringUntil('\n');
-    }
+  String currentjson() { //kaka ajouter les maxat et powersum pour debug depuis page web
+    String json = "{\"current\":\"" + String(currentValue) +  "\"}";
+    return json;
   }
+
+  String iotDBjson() {
+    String json = "{\"iotname\":\"" + APssid + "\",";
+    json += "\"iotid\":\"" + String(MAC_char) + "\",";
+    json += "\"R1\":" + String(R1Status) + ",";
+    json += "\"localip\":\"" + String(mylocalIPString) + "\",";
+    json += "\"current\":\"" + String(currentValue) + "\",";
+    json += "\"luminosity\":\"" + String(lumValue) + "\",";
+    json += "\"temperature\":\"" + tempDhtValue + "\",";
+    json += "\"humidity\":\"" + humDhtValue + "\",";
+    json += "\"button\":\"" + String(buttonState) + "\"}";
+    // add time stamp ?
+    return json;
+  }
+
+    String Randomjson() {
+    String json = "{\"iotname\":\"" + APssid + "\",";
+    json += "\"iotid\":\"" + String(MAC_char) + "\",";
+    json += "\"R1\":" + String(R1Status) + ",";
+    json += "\"localip\":\"" + String(mylocalIPString) + "\",";
+    json += "\"current\":\"" + String(random(0, 16)) + "\",";
+    json += "\"luminosity\":\"" + String(random(0, 100)) + "\",";
+    json += "\"temperature\":\"" + String(random(0, 45)) + "\",";
+    json += "\"humidity\":\"" + String(random(50, 100)) + "\",";
+    json += "\"button\":\"" + String(buttonState) + "\"}";
+    // add time stamp ?
+    return json;
+  }
+
+  String loadjson() {
+      String json="[";
+      for (int i = 0; i < 500; i++) {
+        val[i] = analogRead(A0);
+      }
+      for (int i = 0; i < 500; i++) {
+        json +=String(val[i])+",";
+      }
+      json=json.substring(0, json.length() - 1);
+      json+="]";
+      return json;
+  }
+
+  String iotDBget() { // the old way of sending GET request
+    String DBget = "?iotname=" + APssid;
+    DBget += "&iotid=" + String(MAC_char);
+    DBget += "&r1=" + String(R1Status);
+    DBget += "&localip=" + String(mylocalIPString);
+    DBget += "&current=" + String(currentValue);
+    DBget += "&luminosity=" + String(lumValue);
+    DBget += "&temperature=" + tempDhtValue;
+    DBget += "&humidity=" + humDhtValue;
+    return DBget;
+  }
+
+  String iotDBnewget() { // the new way of sending GET request has this shape : HomeIP/iotname/iotid/r1/r2/r3/r4/localip/current/temperature/humidity
+    String DBget = "/" + APssid;
+    DBget += "/" + String(MAC_char);
+    DBget += "/" + String(R1Status);
+    DBget += "/" + String(mylocalIPString);
+    DBget += "/" + String(currentValue);
+    DBget += "/" + String(lumValue);
+    DBget += "/" + tempDhtValue;
+    DBget += "/" + humDhtValue;
+    DBget += "/";
+    return DBget;
+  }
+
 //----------------------------------------  Encryption --------------------------------------------------
   String privateKey="olivieretflorianolivieretflorian";
 
@@ -971,204 +1170,8 @@
     return textString;
   }
 
-//--------------------------------- String elaboration sub-routines -------------------------------------
-  String wifiscan() {
-    DBG_PRINTLN("scan start");
-
-    // WiFi.scanNetworks will return the number of networks found
-    // WiFi.scanNetworks doesnt work (miss always the best network) on this sdk version issue:#1355 on github
-    // fixed : https://github.com/esp8266/Arduino/issues/1355
-
-    // sort an array : http://www.hackshed.co.uk/arduino-sorting-array-integers-with-a-bubble-sort-algorithm/
-    int n = WiFi.scanNetworks();
-    DBG_PRINTLN("scan done");
-    if (n == 0)
-      DBG_PRINTLN("no networks found");
-    else
-    {
-      DBG_PRINT(n);
-      DBG_PRINTLN(" networks found");
-
-      int rssi[30];
-      memset(rssi, 0, sizeof(rssi));
-      for (int i = 0; i < n; ++i) {
-        rssi[i] = WiFi.RSSI(i);
-      }
-
-      int rank[30];
-      for (int i = 0; i < 30; ++i) {
-        rank[i] = i;
-      }
-
-      sort(rssi, n, rank);
-
-
-      // Print SSID and RSSI in a json for each network found
-      String json="[";
-      for (int i = 0; i < n; ++i) {
-        json += "{\"SSID\":\"" + String(WiFi.SSID(rank[i])) + "\"";
-        json += ",\"RSSI\":\"" + String(WiFi.RSSI(rank[i])) + "\"},";
-      }
-      json = json.substring(0, json.length() - 1);
-      json += "]";
-      return json;
-    }
-    //DBG_PRINTLN("");
-  }
-
-  String wifistate() {
-    // add ssid name (if wifistatus=connecting or connected or not exist?)
-    String json = "{\"apstate\":\"" + wifistatestring[WiFi.status()] + "\",{\"apname\":\"" + STssid + "\"}";
-    return json;
-  }
-
-  String wifiparam() {
-
-    WifiToVars();
-
-    String json = "{\"APip\":\"" + String(myIPString) + "\"";
-    json += ",\"APssid\":\"" + APssid + "\"";
-          if (WifiActive == true) {
-            json += ",\"state\":\"" + wifistatestring[WiFi.status()] + "\"";
-            json += ",\"STssid\":\"" + String(WiFi.SSID()) + "\"";
-            }
-          else {
-            json += ",\"state\":\"" + WifiLastStatus + "\"";
-            json += ",\"STssid\":\"" + STssid + "\"";
-          }
-    json += ",\"localip\":\"" + String(mylocalIPString) + "\"";
-    json += ",\"netmaskip\":\"" + String(mysubnetMaskString) + "\"";
-    json += ",\"gatewayip\":\"" + String(mygatewayIPString) + "\"";
-    json += ",\"mac\":\""  + String(MAC_char) +  "\"";
-    json += ",\"homeip\":\""  + HomeIP +  "\"";
-    json += ",\"homeport\":\""  + String(homeport) +  "\"";
-    json += ",\"homestate\":\""  + HomeState +  "\"}";
-
-    return json;
-  }
-
-  String macstr() {
-    WiFi.macAddress(MAC_array);
-    for (int i = 0; i < sizeof(MAC_array); ++i) {
-      sprintf(MAC_char, "%s%02x:", MAC_char, MAC_array[i]);
-    }
-    MAC_char[17] = (char)0;
-    return String(MAC_char);
-  }
-
-  String macaddress() {
-    String json = "{\"mac address\":\"" + String(MAC_char) +  "\"}";
-    return json;
-  }
-
-  String dhtjson() {
-    String json = "{\"temperature\":\"" + tempDhtValue +  "\",\"humidity\":\"" + humDhtValue +  "\"}";
-    return json;
-  }
-
-  String currentjson() { //kaka ajouter les maxat et powersum pour debug depuis page web
-    String json = "{\"current\":\"" + String(currentValue) +  "\"}";
-    return json;
-  }
-
-  String iotDBjson() {
-    String json = "{\"iotname\":\"" + APssid + "\",";
-    json += "\"iotid\":\"" + String(MAC_char) + "\",";
-    json += "\"R1\":" + String(R1Status) + ",";
-    json += "\"localip\":\"" + String(mylocalIPString) + "\",";
-    json += "\"current\":\"" + String(currentValue) + "\",";
-    json += "\"luminosity\":\"" + String(lumValue) + "\",";
-    json += "\"temperature\":\"" + tempDhtValue + "\",";
-    json += "\"humidity\":\"" + humDhtValue + "\",";
-    json += "\"button\":\"" + String(buttonState) + "\"}";
-    // add time stamp ?
-    return json;
-  }
-
-    String Randomjson() {
-    String json = "{\"iotname\":\"" + APssid + "\",";
-    json += "\"iotid\":\"" + String(MAC_char) + "\",";
-    json += "\"R1\":" + String(R1Status) + ",";
-    json += "\"localip\":\"" + String(mylocalIPString) + "\",";
-    json += "\"current\":\"" + String(random(0, 16)) + "\",";
-    json += "\"luminosity\":\"" + String(random(0, 100)) + "\",";
-    json += "\"temperature\":\"" + String(random(0, 45)) + "\",";
-    json += "\"humidity\":\"" + String(random(50, 100)) + "\",";
-    json += "\"button\":\"" + String(buttonState) + "\"}";
-    // add time stamp ?
-    return json;
-  }
-
-  String loadjson() {
-      String json="[";
-      for (int i = 0; i < 500; i++) {
-        val[i] = analogRead(A0);
-      }
-      for (int i = 0; i < 500; i++) {
-        json +=String(val[i])+",";
-      }
-      json=json.substring(0, json.length() - 1);
-      json+="]";
-      return json;
-  }
-
-  String iotDBget() { // the old way of sending GET request
-    String DBget = "?iotname=" + APssid;
-    DBget += "&iotid=" + String(MAC_char);
-    DBget += "&r1=" + String(R1Status);
-    DBget += "&localip=" + String(mylocalIPString);
-    DBget += "&current=" + String(currentValue);
-    DBget += "&luminosity=" + String(lumValue);
-    DBget += "&temperature=" + tempDhtValue;
-    DBget += "&humidity=" + humDhtValue;
-    return DBget;
-  }
-
-  String iotDBnewget() { // the new way of sending GET request has this shape : HomeIP/iotname/iotid/r1/r2/r3/r4/localip/current/temperature/humidity
-    String DBget = "/" + APssid;
-    DBget += "/" + String(MAC_char);
-    DBget += "/" + String(R1Status);
-    DBget += "/" + String(mylocalIPString);
-    DBget += "/" + String(currentValue);
-    DBget += "/" + String(lumValue);
-    DBget += "/" + tempDhtValue;
-    DBget += "/" + humDhtValue;
-    DBget += "/";
-    return DBget;
-  }
-
 // -------------------------------------- Networks connection -------------------------------------------
-  void sort(int a[], int size, int r[]) {
-    for (int i = 0; i < (size - 1); i++) {
-      for (int o = 0; o < (size - (i + 1)); o++) {
-        if (a[o] < a[o + 1]) {
-          int t = a[o];
-          a[o] = a[o + 1];
-          a[o + 1] = t;
-          t = r[o];
-          r[o] = r[o + 1];
-          r[o + 1] = t;
-        }
-      }
-    } // used to sort the wifi access point list
-  }
       
-  void WifiToVars() {
-    IPAddress myIP;
-    IPAddress mylocalIP;
-    IPAddress mysubnetMask;
-    IPAddress mygatewayIP;
-
-    myIP = WiFi.softAPIP();
-    sprintf(myIPString, "%d.%d.%d.%d", myIP[0], myIP[1], myIP[2], myIP[3]);
-    mylocalIP = WiFi.localIP();
-    sprintf(mylocalIPString, "%d.%d.%d.%d", mylocalIP[0], mylocalIP[1], mylocalIP[2], mylocalIP[3]);
-    mysubnetMask = WiFi.subnetMask();
-    sprintf(mysubnetMaskString, "%d.%d.%d.%d", mysubnetMask[0], mysubnetMask[1], mysubnetMask[2], mysubnetMask[3]);
-    mygatewayIP = WiFi.gatewayIP();
-    sprintf(mygatewayIPString, "%d.%d.%d.%d", mygatewayIP[0], mygatewayIP[1], mygatewayIP[2], mygatewayIP[3]); //// turns IP chars to strings
-  }
-
   void APconnect(String ssid, String pwd) {
    WiFi.softAP(ssid.c_str(), pwd.c_str());
    needUpdate=true;
